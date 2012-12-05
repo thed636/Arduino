@@ -12,10 +12,10 @@ public:
     digitalWrite(number(), high ? HIGH : LOW);
   }
   inline void high() {
-    value(true);
+    state(true);
   }
   inline void low() {
-    value(false);
+    state(false);
   }
   inline byte number() const {
     return pin;

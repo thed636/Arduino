@@ -8,7 +8,7 @@
 class PwmDriver {
 public:
   PwmDriver(byte cwPinNumber, byte ccwPinNumber, byte pwmPinNumber)
-   : cwP(cwPinNumber), ccw(ccwPinNumber), pwm(pwmPinNumber) {
+   : cw(cwPinNumber), ccw(ccwPinNumber), pwm(pwmPinNumber) {
     stop();
   }
   inline void stop() {
@@ -24,5 +24,5 @@ private:
   TtlOutPin cw;
   TtlOutPin ccw;
   PwmPin pwm;
-}
+};
 #endif
