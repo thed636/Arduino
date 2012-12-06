@@ -21,4 +21,52 @@ private:
   const byte pin;
 };
 
+class Trigger : public TtlInPin {
+public:
+  Trigger( byte pinNumber ) : TtlInPin(pinNumber){
+    reset();
+  }
+  Trigger( byte pinNumber, bool triggerLowState) : TtlInPin(pinNumber) {
+    reset(triggerLowState);
+  }
+  
+  bool changed() const {
+    return state != high();
+  }
+  
+  void reset() {
+    state = high();
+  }
+  
+  void reset( bool triggerLowState ) {
+    state = triggerLowState;
+  }
+private:
+  bool state;
+};
+
+class EdgeCounter {
+public:
+  EdgeCounter(Trigger & trigger) : trigger(trigger), count_(0) {
+  }
+  
+  void reset() {
+    count_= 0;
+  }
+  
+  uint32_t count() const {
+    return count_;
+  }
+  
+  uint32_t update() {
+    if( trigger.changed() ) {
+      trigger.reset();
+      ++count_;
+    }
+    return count();
+  }
+private:
+  Trigger & trigger;
+  uint32_t count_;
+};
 #endif //TTL_IN_PIN_H_031220122303
