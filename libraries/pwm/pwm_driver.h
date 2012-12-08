@@ -11,30 +11,24 @@ public:
    : cw(cwPinNumber), ccw(ccwPinNumber), pwm(pwmPinNumber) {
     stop();
   }
-
+  enum{ maxOutValue=255, minOutValue=-255  };
   inline void stop() {
-    speed(0);
+    out(0);
   }
 
-  int direction() const {
-    return speed() ? (speed() > 0 ? 1 : -1) : 0;
-  }
-  
-  int speed() const {
-    return speed_;
+  int out() const {
+    return out_;
   }
 
-  void speed( int v ) {
-    if( v!= speed() ) {
-      speed_ = v;
-      if( direction() ) {
-        setCcw( direction() == 1 );
-        pwm.value( direction() * speed() );
+  void out( int v ) {
+    v = max(min(v,maxOutValue), minOutValue);
+    if( v!= out() ) {
+      out_ = v;
+      if( out_ ) {
+        setCcw( out_>0 );
+        pwm.value( abs(out_) );
       } else {
         pwm.value(0);
-        cw.high();
-        ccw.high();
-        delay(10);
         cw.low();
         ccw.low();
       }
@@ -50,6 +44,6 @@ private:
   TtlOutPin cw;
   TtlOutPin ccw;
   PwmPin pwm;
-  int speed_;
+  int out_;
 };
 #endif

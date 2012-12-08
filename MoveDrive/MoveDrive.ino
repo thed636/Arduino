@@ -2,8 +2,9 @@
 #include <drives.h>
 #include "D:\workspace\arductl\src\messages.h"
 PwmDriver drive1(22,23,2);
-ServoDrive baseDrive(22,23,2,24);
+ServoDrive baseDrive(23,22,2,24);
 
+DescreteSample descreteSample;
 
 // the setup routine runs once when you press reset:
 void setup() {                
@@ -11,8 +12,28 @@ void setup() {
   Serial.flush();
   while( Serial.available() )
     Serial.read();
-
+  baseDrive.calibrate();
   Serial.write(0x22);
+}
+
+void control() {
+  if( descreteSample.tick() ) {
+    baseDrive.update();
+  }
+}
+
+void readFromSerial( char * buf, uint8_t size ) {
+  for( uint8_t i = 0; i!= size; ++i ) {
+    buf[i]= Serial.read();
+    control();
+  }
+}
+
+void writeToSerial( const uint8_t * buf, uint8_t size ) {
+  for( uint8_t i = 0; i!= size; ++i ) {
+    Serial.write(buf[i]);
+    control();
+  }
 }
 
 //Here can be just Serial.peek()
@@ -25,12 +46,10 @@ void setup() {
     typedef Response __Resp; \
     if(Serial.available()>=sizeof(Request)) { \
       Request request;\
-      char * inBuf((char*)(&request));\
-      for( int i = 0; i!= sizeof(Request); ++i ) \
-        inBuf[i]= Serial.read(); \
+      readFromSerial((char*)(&request), sizeof(Request));\
       Response response;
          
-#define HANDLE_MESSAGE_END Serial.flush(); Serial.write((uint8_t*)(&response), sizeof(__Resp));}} break
+#define HANDLE_MESSAGE_END Serial.flush(); writeToSerial((uint8_t*)(&response), sizeof(__Resp));}} break
 
 // the loop routine runs over and over again forever:
 void loop() {
@@ -61,6 +80,6 @@ void loop() {
       HANDLE_MESSAGE_END;
     MESSAGE_HANDLERS_END;
   }
-  baseDrive.update();
+  control();
 }
 
