@@ -11,35 +11,19 @@ public:
    : cw(cwPinNumber), ccw(ccwPinNumber), pwm(pwmPinNumber) {
     stop();
   }
-  enum{ maxOutValue=255, minOutValue=-255  };
-  inline void stop() {
-    out(0);
-  }
 
-  int out() const {
-    return out_;
-  }
+  static const int maxOutValue;
+  static const int minOutValue;
 
-  void out( int v ) {
-    v = max(min(v,maxOutValue), minOutValue);
-    if( v!= out() ) {
-      out_ = v;
-      if( out_ ) {
-        setCcw( out_>0 );
-        pwm.value( abs(out_) );
-      } else {
-        pwm.value(0);
-        cw.low();
-        ccw.low();
-      }
-    }
-  }
+  inline void stop() { out(0); }
+
+  inline int out() const { return out_; }
+
+  void out( int v );
 
 protected:
-  void setCcw( bool v ) {
-    cw.state(!v);
-    ccw.state(v);
-  }
+  void updateOutput();
+
 private:
   TtlOutPin cw;
   TtlOutPin ccw;

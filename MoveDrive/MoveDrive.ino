@@ -12,7 +12,14 @@ void setup() {
   Serial.flush();
   while( Serial.available() )
     Serial.read();
-  baseDrive.calibrate();
+  //baseDrive.calibrate();
+//  drive1.out(200);
+//  delay(1000);
+//  drive1.out(-200);
+//  delay(1000);
+//  drive1.out(0);
+//  delay(1000);
+//  baseDrive.reset();
   Serial.write(0x22);
 }
 
