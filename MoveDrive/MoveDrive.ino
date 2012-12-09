@@ -83,6 +83,18 @@ void loop() {
       HANDLE_MESSAGE_BEGIN(GetDrivePositionError,DrivePositionError)
         response.error = baseDrive.error();
       HANDLE_MESSAGE_END;
+      HANDLE_MESSAGE_BEGIN(ConfigureDrive,ArduinoResponse)
+        baseDrive.reset();
+        baseDrive.speedRegulator().configure(request.speed.Kp(), request.speed.Kip(), request.speed.Kdp());
+        baseDrive.positionRegulator().configure(request.pos.Kp());
+      HANDLE_MESSAGE_END;
+      HANDLE_MESSAGE_BEGIN(GetDriveState,DriveStateResponse)
+        response.state.pos = baseDrive.position();
+        response.state.error = baseDrive.error();
+        response.state.speed = baseDrive.speed();
+        response.state.speedError = baseDrive.speedError();
+        response.state.out = baseDrive.out();
+      HANDLE_MESSAGE_END;
       HANDLE_MESSAGE_BEGIN(StopDrive,ArduinoResponse)
         drive1.stop();
         response.result = 0;

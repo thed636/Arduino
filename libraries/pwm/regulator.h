@@ -5,20 +5,16 @@
 class PidRegulator {
 public:
     enum { scaleFactor = 10000 };
-    PidRegulator(float Kp, float Kip, float Kdp, float maxu, float minu, float T)
-    : e_1(0),
-      e_2(0),
-      Kp(Kp * float(scaleFactor)),
-      Kdi( Kp * Kip * T * float(scaleFactor)),
-      Kdd( Kp * Kdp / T * float(scaleFactor)),
-      u_1(0), maxu( maxu * float(scaleFactor)),
-      minu(minu * float(scaleFactor)) {
+    PidRegulator(float Kp_, float Kip, float Kdp, float maxu, float minu, float T)
+    : e_1(0), e_2(0), Kp(0), Kdi(0), Kdd(0), u_1(0), maxu( maxu * float(scaleFactor)),
+      minu(minu * float(scaleFactor)), T(T) {
+        configure(Kp_, Kip, Kdp);
     }
 
     int control(int error) {
         const long e = error;
         const long u = u_1 + Kp * (e - e_1) + Kdi * e + Kdd * (e - 2 * e_1 + e_2);
-        u_1 = constrain(u, minu, maxu);
+        u_1 = u;//constrain(u, minu, maxu);
         e_2 = e_1;
         e_1 = e;
         return u_1 / scaleFactor;
@@ -27,15 +23,23 @@ public:
     void reset() {
         u_1 = e_1 = e_2 = 0;
     }
+
+    void configure( float Kp_, float Kip, float Kdp ) {
+        Kp = Kp_ * float(scaleFactor),
+        Kdi = Kp_ * Kip * T * float(scaleFactor);
+        Kdd = Kp_ * Kdp / T * float(scaleFactor);
+        reset();
+    }
 private:
-    int e_1;
-    int e_2;
-    int Kp;
-    int Kdi;
-    int Kdd;
+    long e_1;
+    long e_2;
+    long Kp;
+    long Kdi;
+    long Kdd;
     long u_1;
     long maxu;
     long minu;
+    float T;
 };
 
 class PRegulator {
@@ -51,6 +55,10 @@ public:
     int control(long error) {
         const long u = error * Kp;
         return int(constrain(u, minu, maxu) / long(scaleFactor));
+    }
+
+    void configure( float Kp_ ) {
+        Kp = Kp_ * float(scaleFactor);
     }
 private:
     long Kp;

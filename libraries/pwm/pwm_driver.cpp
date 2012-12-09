@@ -1,7 +1,7 @@
 #include <pwm_driver.h>
 
-const int PwmDriver::maxOutValue = 255;
-const int PwmDriver::minOutValue = -255;
+const int PwmDriver::maxOutValue = 215;
+const int PwmDriver::minOutValue = -215;
 
 void PwmDriver::out(int v) {
     const int newValue = constrain(v, minOutValue, maxOutValue);
@@ -13,7 +13,7 @@ void PwmDriver::out(int v) {
 
 void PwmDriver::updateOutput() {
     if (out()) {
-        const int pwmValue = abs(out()) & 0xFF;
+        const int pwmValue = (abs(out()) + 40) & 0xFF;
         pwm.value(pwmValue);
         const bool ccwDirection = out() > 0;
         ccw.state(ccwDirection);

@@ -26,9 +26,6 @@ public:
     Trigger(byte pinNumber) : TtlInPin(pinNumber) {
         reset();
     }
-    Trigger(byte pinNumber, bool triggerLowState) : TtlInPin(pinNumber) {
-        reset(triggerLowState);
-    }
 
     bool changed() const {
         return state != high();
@@ -38,9 +35,6 @@ public:
         state = high();
     }
 
-    void reset(bool triggerLowState) {
-        state = triggerLowState;
-    }
 private:
     bool state;
 };

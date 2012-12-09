@@ -30,7 +30,8 @@ public:
     void setDirection(int v) {
         direction = v;
     }
-
+protected:
+    bool checkTriggerRaised();
 private:
     Trigger trigger;
     int x;

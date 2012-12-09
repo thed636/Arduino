@@ -19,8 +19,9 @@ public:
             const DescreteSample & descrete) :
             encoder_(pulsePinNumber), driver(cwPinNumber, ccwPinNumber, pwmPinNumber),
             maxX(0), minX(0),
-            speedRegulator(10.0, 2.5, 1.0, 255., -255., descrete.T()),
-            positionRegulator(2.0) {
+            speedRegulator_(10.0, 2.5, 1.0, 255., -255., descrete.T()),
+            positionRegulator_(2.0),
+            speedError_(0){
         reset();
     }
 
@@ -58,6 +59,10 @@ public:
         return encoder().velocity();
     }
 
+    int speedError() const {
+        return speedError_;
+    }
+
     void setMaxSpeed(byte v) {
         //positionRegulator.maximum(v);
     }
@@ -79,17 +84,27 @@ public:
     }
 
     void reset() {
-        u = 0;
+        speedError_ = u = 0;
         encoder().reset();
+    }
+
+    SpeedRegulator & speedRegulator() {
+        return speedRegulator_;
+    }
+    PositionRegulator & positionRegulator() {
+        return positionRegulator_;
+    }
+    int out() const {
+        return driver.out();
     }
 protected:
     void setSpeed(int v) {
-        const int e = v - speed();
-        if (!v && !e) {
+        speedError_ = v - speed();
+        if (!v && abs(speedError()) < 15 ) {
             driver.stop();
-            speedRegulator.reset();
+            speedRegulator().reset();
         } else {
-            const int out = speedRegulator.control(e);
+            const int out = speedRegulator().control(speedError());
             driver.out(out);
         }
         if (v) {
@@ -98,7 +113,7 @@ protected:
     }
 
     void control() {
-        setSpeed(positionRegulator.control(error()));
+        setSpeed(positionRegulator().control(error()));
     }
 
 private:
@@ -107,8 +122,9 @@ private:
     int u;
     int maxX;
     int minX;
-    SpeedRegulator speedRegulator;
-    PositionRegulator positionRegulator;
+    SpeedRegulator speedRegulator_;
+    PositionRegulator positionRegulator_;
+    int speedError_;
 };
 
 #endif // DRIVES_H_165506122012
