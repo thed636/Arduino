@@ -1,10 +1,12 @@
 #include <pwm_driver.h>
 #include <drives.h>
 #include "D:\workspace\arductl\src\messages.h"
-PwmDriver drive1(22,23,2);
-ServoDrive baseDrive(23,22,2,24);
 
-DescreteSample descreteSample;
+DescreteSample descrete;
+
+PwmDriver drive1(22,23,2);
+ServoDrive baseDrive(23,22,2,24,descrete);
+
 
 // the setup routine runs once when you press reset:
 void setup() {                
@@ -24,7 +26,7 @@ void setup() {
 }
 
 void control() {
-  if( descreteSample.tick() ) {
+  if( descrete.tick() ) {
     baseDrive.update();
   }
 }
