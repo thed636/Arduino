@@ -7,21 +7,20 @@
 #include <descrete.h>
 #include <regulator.h>
 
-#define sign(v) (abs(v)/v)
-
-typedef PidRegulator SpeedRegulator;
+typedef PidRegulator VelocityRegulator;
 
 typedef PRegulator PositionRegulator;
 
 class ServoDrive {
 public:
+    enum ControlKind { controlPosition, controlVelocity };
     ServoDrive(byte cwPinNumber, byte ccwPinNumber, byte pwmPinNumber, byte pulsePinNumber,
             const DescreteSample & descrete) :
             encoder_(pulsePinNumber), driver(cwPinNumber, ccwPinNumber, pwmPinNumber),
-            maxX(0), minX(0),
-            speedRegulator_(10.0, 2.5, 1.0, 255., -255., descrete.T()),
-            positionRegulator_(2.0),
-            speedError_(0){
+            maxPos(0), minPos(0),
+            velocityRegulator_(10.0, 2.5, 1.0, 255., -255., descrete.T()),
+            positionRegulator_(2.0, 80., -80.),
+            targetSpeed_(0){
         reset();
     }
 
@@ -37,30 +36,34 @@ public:
         return encoder().position();
     }
 
-    int target() const {
-        return u;
+    int targetPosition() const {
+        return teargetPos_;
     }
 
-    void target(int val) {
-        u = val;
+    void targetPosition(int val) {
+        teargetPos_ = val;
+        controlKind = controlPosition;
     }
 
-    int error() const {
-        return target() - position();
-    }
-
-    int update() {
-        encoder().update();
-        control();
-        return error();
+    int positionError() const {
+        return targetPosition() - position();
     }
 
     int speed() const {
         return encoder().velocity();
     }
 
+    int targetSpeed() const {
+        return targetSpeed_;
+    }
+
+    void targetSpeed( int v ) {
+        targetSpeed_ = v;
+        controlKind = controlVelocity;
+    }
+
     int speedError() const {
-        return speedError_;
+        return targetSpeed_ - speed();
     }
 
     void setMaxSpeed(byte v) {
@@ -70,26 +73,26 @@ public:
     void calibrate() {
         TtlInPin pin(30);
         int x0 = position();
-        setSpeed(150);
+        targetSpeed(150);
         while (pin.high()) {
-            x0 = encoder().update();
+            control();
         }
-        setSpeed(0);
+        targetSpeed(0);
         while (speed())
             encoder().update();
-//    target(x0);
+//    targetPosition(x0);
 //    while(speed()||error())
 //      update();
         reset();
     }
 
     void reset() {
-        speedError_ = u = 0;
+        targetSpeed_ = teargetPos_ = 0;
         encoder().reset();
     }
 
-    SpeedRegulator & speedRegulator() {
-        return speedRegulator_;
+    VelocityRegulator & velocityRegulator() {
+        return velocityRegulator_;
     }
     PositionRegulator & positionRegulator() {
         return positionRegulator_;
@@ -97,34 +100,46 @@ public:
     int out() const {
         return driver.out();
     }
-protected:
-    void setSpeed(int v) {
-        speedError_ = v - speed();
-        if (!v && abs(speedError()) < 15 ) {
-            driver.stop();
-            speedRegulator().reset();
-        } else {
-            const int out = speedRegulator().control(speedError());
-            driver.out(out);
-        }
-        if (v) {
-            encoder().setDirection(sign(v));
-        }
-    }
 
     void control() {
-        setSpeed(positionRegulator().control(error()));
+        encoder().update();
+        if( controlKind == controlPosition ) {
+            handlePositionError();
+        }
+        handleSpeedError();
+        updateEncoderDirection();
+    }
+protected:
+    void updateEncoderDirection() {
+        if (out()) {
+            encoder().setDirection(sign(out()));
+        }
     }
 
+    void handleSpeedError() {
+        if (targetSpeed()==0 && abs(speedError()) < 15 ) {
+            driver.stop();
+            velocityRegulator().reset();
+        } else {
+            const int ctl = velocityRegulator().control(speedError());
+            const bool sameDirection = sign(ctl) == sign(speed());
+            driver.out( !speed() || sameDirection ? ctl : 0 );
+        }
+    }
+
+    void handlePositionError() {
+        targetSpeed_ = positionRegulator().control(positionError());
+    }
 private:
     SoftEncoder encoder_;
     PwmDriver driver;
-    int u;
-    int maxX;
-    int minX;
-    SpeedRegulator speedRegulator_;
+    int teargetPos_;
+    int maxPos;
+    int minPos;
+    VelocityRegulator velocityRegulator_;
     PositionRegulator positionRegulator_;
-    int speedError_;
+    int targetSpeed_;
+    ControlKind controlKind;
 };
 
 #endif // DRIVES_H_165506122012

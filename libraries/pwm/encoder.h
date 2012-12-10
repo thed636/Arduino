@@ -7,37 +7,98 @@
 class SoftEncoder {
 public:
     SoftEncoder(byte pulsePinNumber)
-    : trigger(pulsePinNumber), x(0), t_1(millis()), dt(dtMax), direction(0) {
+    : trigger(pulsePinNumber), x(0), dx(0), tick_(dtMax), direction(0) {
     }
 
     enum { timeNumerator = 1000, dtMax };
+
+    typedef unsigned int tick_type;
 
     int position() const {
         return x;
     }
 
-    int update();
-
     int velocity() const {
-        return timeNumerator / dt * direction;
+        return dx;
     }
 
+    bool update();
+
     void reset() {
-        x = 0;
+        x = dx = 0;
         trigger.reset();
     }
 
     void setDirection(int v) {
         direction = v;
     }
+
+    tick_type tick() const {
+        return tick_;
+    }
+
+    int calculateVelocity( tick_type phase ) {
+        return timeNumerator / phase * direction;
+    }
+
 protected:
     bool checkTriggerRaised();
+
+    void increment() {
+        x += direction;
+    }
 private:
     Trigger trigger;
     int x;
-    unsigned long t_1;
-    unsigned long dt;
+    int dx;
+    tick_type tick_;
     int direction;
 };
+
+//class PseudoEncoder {
+//public:
+//    PseudoEncoder()
+//    : x(0), dx(0), tick_(dtMax), direction(0) {
+//    }
+//
+//    enum { timeNumerator = 1000, dtMax };
+//
+//    typedef unsigned int tick_type;
+//
+//    int position() const {
+//        return x;
+//    }
+//
+//    bool update() {
+//        ++tick;
+//    }
+//
+//    void reset() {
+//        x = dx = 0;
+//    }
+//
+//    void setDirection(int v) {
+//        direction = v;
+//    }
+//
+//    tick_type tick() const {
+//        return tick_;
+//    }
+//
+//    static int calculatePhase( int velocity ) {
+//        return velocity ? timeNumerator / abs(velocity) : dtMax;
+//    }
+//protected:
+//    bool checkTriggerRaised();
+//
+//    void increment() {
+//        x += direction;
+//    }
+//private:
+//    int x;
+//    int dx;
+//    tick_type tick_;
+//    int direction;
+//};
 
 #endif

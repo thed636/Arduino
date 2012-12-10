@@ -8,17 +8,21 @@ bool SoftEncoder::checkTriggerRaised() {
     return false;
 }
 
-int SoftEncoder::update() {
-    const unsigned long t = millis();
-    const unsigned long timeout = t - t_1;
-
+bool SoftEncoder::update() {
+    if(tick_<timeNumerator) {
+        ++tick_;
+    }
+    const int v(calculateVelocity(++tick_));
     if (checkTriggerRaised()) {
-        x += direction;
-        dt = timeout;
-        t_1 = t;
-    } else if (dt < dtMax && timeout > dt) {
-        dt = timeout;
+        increment();
+        dx = v;
+        tick_ = 0;
+        return true;
+    }
+    if ( v < velocity() ) {
+        dx = v;
+        return velocity() == 0;
     }
 
-    return x;
+    return false;
 }

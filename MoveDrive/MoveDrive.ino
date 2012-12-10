@@ -27,7 +27,7 @@ void setup() {
 
 void control() {
   if( descrete.tick() ) {
-    baseDrive.update();
+    baseDrive.control();
   }
 }
 
@@ -71,7 +71,7 @@ void loop() {
       HANDLE_MESSAGE_END;
       HANDLE_MESSAGE_BEGIN(MoveDriveTo,ArduinoResponse)
         baseDrive.setMaxSpeed(request.speed);
-        baseDrive.target(request.x);
+        baseDrive.targetPosition(request.x);
         response.result = 0;
       HANDLE_MESSAGE_END;
       HANDLE_MESSAGE_BEGIN(GetDrivePosition,DrivePosition)
@@ -81,16 +81,16 @@ void loop() {
         response.speed = baseDrive.speed();
       HANDLE_MESSAGE_END;
       HANDLE_MESSAGE_BEGIN(GetDrivePositionError,DrivePositionError)
-        response.error = baseDrive.error();
+        response.error = baseDrive.positionError();
       HANDLE_MESSAGE_END;
       HANDLE_MESSAGE_BEGIN(ConfigureDrive,ArduinoResponse)
         baseDrive.reset();
-        baseDrive.speedRegulator().configure(request.speed.Kp(), request.speed.Kip(), request.speed.Kdp());
+        baseDrive.velocityRegulator().configure(request.speed.Kp(), request.speed.Kip(), request.speed.Kdp());
         baseDrive.positionRegulator().configure(request.pos.Kp());
       HANDLE_MESSAGE_END;
       HANDLE_MESSAGE_BEGIN(GetDriveState,DriveStateResponse)
         response.state.pos = baseDrive.position();
-        response.state.error = baseDrive.error();
+        response.state.error = baseDrive.positionError();
         response.state.speed = baseDrive.speed();
         response.state.speedError = baseDrive.speedError();
         response.state.out = baseDrive.out();
