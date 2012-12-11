@@ -1,27 +1,28 @@
 #include <encoder.h>
-
+#include <sign.h>
 bool SoftEncoder::checkTriggerRaised() {
     if (trigger.changed()) {
         trigger.reset();
-        return trigger.high();
+        return true;//trigger.high();
     }
     return false;
 }
 
 bool SoftEncoder::update() {
-    if(tick_<timeNumerator) {
-        ++tick_;
+    if( dx ) {
+        tick_++;
     }
-    const int v(calculateVelocity(++tick_));
     if (checkTriggerRaised()) {
         increment();
-        dx = v;
+        dx_1 = dx;
+        dx = calculateVelocity(tick_);
+        dt_1 = tick_;
         tick_ = 0;
         return true;
     }
-    if ( v < velocity() ) {
-        dx = v;
-        return velocity() == 0;
+    if ( tick_ > dt_1 && dx ) {
+        dx = max(0, abs(dx - max(1,abs( dx - dx_1)/tick_)))*sign(dx);
+        return true;
     }
 
     return false;

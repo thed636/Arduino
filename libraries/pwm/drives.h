@@ -13,14 +13,15 @@ typedef PRegulator PositionRegulator;
 
 class ServoDrive {
 public:
-    enum ControlKind { controlPosition, controlVelocity };
+    enum ControlKind { controlPosition, controlVelocity, controlSeek };
     ServoDrive(byte cwPinNumber, byte ccwPinNumber, byte pwmPinNumber, byte pulsePinNumber,
             const DescreteSample & descrete) :
             encoder_(pulsePinNumber), driver(cwPinNumber, ccwPinNumber, pwmPinNumber),
             maxPos(0), minPos(0),
             velocityRegulator_(10.0, 2.5, 1.0, 255., -255., descrete.T()),
-            positionRegulator_(2.0, 80., -80.),
-            targetSpeed_(0){
+            positionRegulator_(2.0, 140., -140.),
+            targetSpeed_(0),
+            basePin(30) {
         reset();
     }
 
@@ -50,7 +51,7 @@ public:
     }
 
     int speed() const {
-        return encoder().velocity();
+        return spd;// + (spd_1 + spd_2)/10;
     }
 
     int targetSpeed() const {
@@ -70,24 +71,14 @@ public:
         //positionRegulator.maximum(v);
     }
 
-    void calibrate() {
-        TtlInPin pin(30);
-        int x0 = position();
-        targetSpeed(150);
-        while (pin.high()) {
-            control();
-        }
-        targetSpeed(0);
-        while (speed())
-            encoder().update();
-//    targetPosition(x0);
-//    while(speed()||error())
-//      update();
-        reset();
+    void seek(int speed) {
+        targetSpeed_ = speed;
+        controlKind = controlSeek;
     }
 
     void reset() {
         targetSpeed_ = teargetPos_ = 0;
+        spd = spd_1 = spd_2 = 0;
         encoder().reset();
     }
 
@@ -100,9 +91,18 @@ public:
     int out() const {
         return driver.out();
     }
+    void deadZone( int v ) {
+        driver.deadZone(v);
+    }
 
     void control() {
-        encoder().update();
+        const int newSpd = encoder().update() ? encoder().velocity() : speed();
+        spd_2 = spd_1;
+        spd_1 = spd;
+        spd = newSpd;
+        if( controlKind == controlSeek ) {
+            handleSeekError();
+        }
         if( controlKind == controlPosition ) {
             handlePositionError();
         }
@@ -117,18 +117,29 @@ protected:
     }
 
     void handleSpeedError() {
-        if (targetSpeed()==0 && abs(speedError()) < 15 ) {
-            driver.stop();
+        const bool positionReached = controlKind == controlPosition && !positionError();
+
+        if( positionReached ) {
             velocityRegulator().reset();
+            driver.stop();
         } else {
-            const int ctl = velocityRegulator().control(speedError());
+            int ctl = velocityRegulator().control(speedError());
             const bool sameDirection = sign(ctl) == sign(speed());
-            driver.out( !speed() || sameDirection ? ctl : 0 );
+            if(speed() && !sameDirection) {
+                ctl = min( abs(speed())/2, abs(ctl) ) * sign(ctl);
+            }
+            driver.out( ctl );
         }
     }
 
     void handlePositionError() {
         targetSpeed_ = positionRegulator().control(positionError());
+    }
+
+    void handleSeekError() {
+        if(basePin.low()) {
+            targetPosition(position());
+        }
     }
 private:
     SoftEncoder encoder_;
@@ -140,6 +151,10 @@ private:
     PositionRegulator positionRegulator_;
     int targetSpeed_;
     ControlKind controlKind;
+    TtlInPin basePin;
+    int spd;
+    int spd_1;
+    int spd_2;
 };
 
 #endif // DRIVES_H_165506122012

@@ -14,7 +14,7 @@ void setup() {
   Serial.flush();
   while( Serial.available() )
     Serial.read();
-  //baseDrive.calibrate();
+    //baseDrive.calibrate();
 //  drive1.out(200);
 //  delay(1000);
 //  drive1.out(-200);
@@ -73,6 +73,15 @@ void loop() {
         baseDrive.setMaxSpeed(request.speed);
         baseDrive.targetPosition(request.x);
         response.result = 0;
+      HANDLE_MESSAGE_END;
+      HANDLE_MESSAGE_BEGIN(MoveDriveSpeed,ArduinoResponse)
+        baseDrive.targetSpeed(request.speed);
+      HANDLE_MESSAGE_END;
+      HANDLE_MESSAGE_BEGIN(SeekDriveSpeed,ArduinoResponse)
+        baseDrive.seek(request.speed);
+      HANDLE_MESSAGE_END;
+      HANDLE_MESSAGE_BEGIN(ResetDrive,ArduinoResponse)
+        baseDrive.reset();
       HANDLE_MESSAGE_END;
       HANDLE_MESSAGE_BEGIN(GetDrivePosition,DrivePosition)
         response.pos = baseDrive.position();

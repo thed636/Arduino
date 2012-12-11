@@ -4,7 +4,7 @@
 
 class DescreteSample {
 public:
-    enum { dtDefault = 1 };
+    enum { dtDefault = 3 };
     DescreteSample(unsigned long dt = dtDefault)
     : dt_(dt), time_(millis()) {
     }

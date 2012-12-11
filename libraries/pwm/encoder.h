@@ -7,10 +7,10 @@
 class SoftEncoder {
 public:
     SoftEncoder(byte pulsePinNumber)
-    : trigger(pulsePinNumber), x(0), dx(0), tick_(dtMax), direction(0) {
+    : trigger(pulsePinNumber), x(0), dx(0), dx_1(0), dt_1(0), tick_(maxTick), direction(0) {
     }
 
-    enum { timeNumerator = 1000, dtMax };
+    enum { timeNumerator = 1000, maxTick };
 
     typedef unsigned int tick_type;
 
@@ -51,6 +51,8 @@ private:
     Trigger trigger;
     int x;
     int dx;
+    int dx_1;
+    tick_type dt_1;
     tick_type tick_;
     int direction;
 };

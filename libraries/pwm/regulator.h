@@ -1,8 +1,7 @@
 #ifndef REGULATOR_H_165506122012
 #define REGULATOR_H_165506122012
 #include <Arduino.h>
-
-#define sign(v) (abs(v)/v)
+#include <sign.h>
 
 class PidRegulator {
 public:
