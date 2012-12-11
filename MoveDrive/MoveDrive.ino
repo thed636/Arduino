@@ -96,6 +96,7 @@ void loop() {
         baseDrive.reset();
         baseDrive.velocityRegulator().configure(request.speed.Kp(), request.speed.Kip(), request.speed.Kdp());
         baseDrive.positionRegulator().configure(request.pos.Kp());
+        baseDrive.deadZone(request.pwm.deadZone);
       HANDLE_MESSAGE_END;
       HANDLE_MESSAGE_BEGIN(GetDriveState,DriveStateResponse)
         response.state.pos = baseDrive.position();
