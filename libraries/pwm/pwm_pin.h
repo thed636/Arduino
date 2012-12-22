@@ -16,6 +16,7 @@ public:
   inline void reset() {
     digitalWrite(number(),0);
   }
+  static const int maxValue;
 private:
   const byte pin;
 };

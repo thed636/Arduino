@@ -37,8 +37,12 @@ public:
         return tick_;
     }
 
-    int calculateVelocity( tick_type phase ) {
+    int calculateVelocity( tick_type phase ) const {
         return timeNumerator / phase * direction;
+    }
+
+    tick_type calculatePhase( int velocity ) const {
+        return abs(timeNumerator / velocity);
     }
 
 protected:
@@ -56,51 +60,5 @@ private:
     tick_type tick_;
     int direction;
 };
-
-//class PseudoEncoder {
-//public:
-//    PseudoEncoder()
-//    : x(0), dx(0), tick_(dtMax), direction(0) {
-//    }
-//
-//    enum { timeNumerator = 1000, dtMax };
-//
-//    typedef unsigned int tick_type;
-//
-//    int position() const {
-//        return x;
-//    }
-//
-//    bool update() {
-//        ++tick;
-//    }
-//
-//    void reset() {
-//        x = dx = 0;
-//    }
-//
-//    void setDirection(int v) {
-//        direction = v;
-//    }
-//
-//    tick_type tick() const {
-//        return tick_;
-//    }
-//
-//    static int calculatePhase( int velocity ) {
-//        return velocity ? timeNumerator / abs(velocity) : dtMax;
-//    }
-//protected:
-//    bool checkTriggerRaised();
-//
-//    void increment() {
-//        x += direction;
-//    }
-//private:
-//    int x;
-//    int dx;
-//    tick_type tick_;
-//    int direction;
-//};
 
 #endif

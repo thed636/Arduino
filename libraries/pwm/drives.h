@@ -7,51 +7,76 @@
 #include <descrete.h>
 #include <regulator.h>
 
-typedef PidRegulator VelocityRegulator;
+typedef PrecisePidRegulator VelocityRegulator;
 
 typedef PRegulator PositionRegulator;
 
-class ServoDrive {
+class ServoDriveSensors {
 public:
-    enum ControlKind { controlPosition, controlVelocity, controlSeek };
-    ServoDrive(byte cwPinNumber, byte ccwPinNumber, byte pwmPinNumber, byte pulsePinNumber,
-            const DescreteSample & descrete) :
-            encoder_(pulsePinNumber), driver(cwPinNumber, ccwPinNumber, pwmPinNumber),
-            maxPos(0), minPos(0),
-            velocityRegulator_(10.0, 2.5, 1.0, 255., -255., descrete.T()),
-            positionRegulator_(2.0, 140., -140.),
-            targetSpeed_(0),
-            basePin(30) {
+    ServoDriveSensors(byte pulsePinNumber, const DescreteSample & descrete) :
+            encoder_(pulsePinNumber), descrete_(descrete) {
         reset();
-    }
-
-    SoftEncoder & encoder() {
-        return encoder_;
-    }
-
-    const SoftEncoder & encoder() const {
-        return encoder_;
     }
 
     int position() const {
         return encoder().position();
     }
 
+    int speed() const {
+        return encoder().velocity() / descrete().dt();
+    }
+
+    const DescreteSample & descrete() const {
+        return descrete_;
+    }
+
+    const SoftEncoder & encoder() const {
+        return encoder_;
+    }
+
+protected:
+    void reset() {
+        encoder().reset();
+    }
+
+    SoftEncoder & encoder() {
+        return encoder_;
+    }
+
+private:
+    SoftEncoder encoder_;
+    const DescreteSample & descrete_;
+};
+
+class ServoDriveControl  {
+public:
+    enum ControlKind { controlPosition, controlVelocity, controlSeek };
+    ServoDriveControl(const ServoDriveSensors & sensors) :
+        sensors(sensors),maxPos(0), minPos(0),
+        velocityRegulator_(10.0, 2.5, 1.0, 255., -255., sensors.descrete()),
+        positionRegulator_(2.0, 140., -140.),
+        targetSpeed_(0),
+        basePin(42) {
+        reset();
+    }
+
     int targetPosition() const {
-        return teargetPos_;
+        return targetPos_;
     }
 
     void targetPosition(int val) {
-        teargetPos_ = val;
+        targetPos_ = val;
         controlKind = controlPosition;
     }
 
     int positionError() const {
-        return targetPosition() - position();
-    }
-
-    int speed() const {
-        return spd;// + (spd_1 + spd_2)/10;
+        switch(controlKind) {
+            case controlPosition :
+                return targetPosition() - sensors.position();
+            case controlSeek :
+                return 1;
+        }
+        return 0;
     }
 
     int targetSpeed() const {
@@ -64,7 +89,7 @@ public:
     }
 
     int speedError() const {
-        return targetSpeed_ - speed();
+        return targetSpeed_ - sensors.speed();
     }
 
     void setMaxSpeed(byte v) {
@@ -77,9 +102,7 @@ public:
     }
 
     void reset() {
-        targetSpeed_ = teargetPos_ = 0;
-        spd = spd_1 = spd_2 = 0;
-        encoder().reset();
+        targetSpeed_ = targetPos_ = 0;
     }
 
     VelocityRegulator & velocityRegulator() {
@@ -87,6 +110,118 @@ public:
     }
     PositionRegulator & positionRegulator() {
         return positionRegulator_;
+    }
+
+    int control() {
+        switch(controlKind) {
+            case controlSeek :
+                handleSeekError();
+            break;
+            case controlPosition :
+                handlePositionError();
+            break;
+        }
+        return handleSpeedError();
+    }
+protected:
+
+    int handleSpeedError() {
+        const bool positionReached = controlKind == controlPosition && !positionError();
+        const int speed = sensors.speed();
+        const SoftEncoder & encoder = sensors.encoder();
+        int ctl(0);
+        if( positionReached ) {
+            velocityRegulator().reset();
+        } else {
+            const int targetPhase = encoder.calculatePhase(speed)/sensors.descrete().dt();
+            const int phaseError = targetPhase<encoder.tick() ? 1 : 0;
+            ctl = velocityRegulator().control(speedError(), phaseError);
+            const bool sameDirection = sign(ctl) == sign(speed);
+            if(speed && !sameDirection) {
+                ctl = 0;
+            }
+        }
+        return ctl;
+    }
+
+    void handlePositionError() {
+        targetSpeed_ = positionRegulator().control(positionError());
+    }
+
+    void handleSeekError() {
+        if(basePin.low()) {
+            targetPosition(sensors.position());
+        }
+    }
+private:
+    const ServoDriveSensors & sensors;
+    int targetPos_;
+    int maxPos;
+    int minPos;
+    VelocityRegulator velocityRegulator_;
+    PositionRegulator positionRegulator_;
+    int targetSpeed_;
+    ControlKind controlKind;
+    TtlInPin basePin;
+};
+
+class ServoDrive : public ServoDriveSensors  {
+public:
+    enum ControlKind { controlPosition, controlVelocity, controlSeek };
+    ServoDrive(byte cwPinNumber, byte ccwPinNumber, byte pwmPinNumber, byte pulsePinNumber,
+            const DescreteSample & descrete) :
+            ServoDriveSensors( pulsePinNumber, descrete),
+            controlSystem(*this),
+            driver(cwPinNumber, ccwPinNumber, pwmPinNumber),
+            basePin(42) {
+        reset();
+    }
+
+    int targetPosition() const {
+        return controlSystem.targetPosition();
+    }
+
+    void targetPosition(int val) {
+        controlSystem.targetPosition(val);
+        controlKind = controlPosition;
+    }
+
+    int positionError() const {
+        return controlSystem.positionError();
+    }
+
+    int targetSpeed() const {
+        return controlSystem.targetSpeed();
+    }
+
+    void targetSpeed( int v ) {
+        controlSystem.targetSpeed(v);
+        controlKind = controlVelocity;
+    }
+
+    int speedError() const {
+        return controlSystem.speedError();
+    }
+
+    void setMaxSpeed(byte v) {
+        controlSystem.setMaxSpeed(v);
+    }
+
+    void seek(int speed) {
+        controlSystem.seek(speed);
+        controlKind = controlSeek;
+    }
+
+    void reset() {
+        controlSystem.reset();
+        ServoDriveSensors::reset();
+    }
+
+    VelocityRegulator & velocityRegulator() {
+        return controlSystem.velocityRegulator();
+    }
+    PositionRegulator & positionRegulator() {
+        return controlSystem.positionRegulator();
     }
     int out() const {
         return driver.out();
@@ -96,17 +231,8 @@ public:
     }
 
     void control() {
-        const int newSpd = encoder().update() ? encoder().velocity() : speed();
-        spd_2 = spd_1;
-        spd_1 = spd;
-        spd = newSpd;
-        if( controlKind == controlSeek ) {
-            handleSeekError();
-        }
-        if( controlKind == controlPosition ) {
-            handlePositionError();
-        }
-        handleSpeedError();
+        encoder().update();
+        driver.out( controlSystem.control() );
         updateEncoderDirection();
     }
 protected:
@@ -115,46 +241,11 @@ protected:
             encoder().setDirection(sign(out()));
         }
     }
-
-    void handleSpeedError() {
-        const bool positionReached = controlKind == controlPosition && !positionError();
-
-        if( positionReached ) {
-            velocityRegulator().reset();
-            driver.stop();
-        } else {
-            int ctl = velocityRegulator().control(speedError());
-            const bool sameDirection = sign(ctl) == sign(speed());
-            if(speed() && !sameDirection) {
-                ctl = min( abs(speed())/2, abs(ctl) ) * sign(ctl);
-            }
-            driver.out( ctl );
-        }
-    }
-
-    void handlePositionError() {
-        targetSpeed_ = positionRegulator().control(positionError());
-    }
-
-    void handleSeekError() {
-        if(basePin.low()) {
-            targetPosition(position());
-        }
-    }
 private:
-    SoftEncoder encoder_;
     PwmDriver driver;
-    int teargetPos_;
-    int maxPos;
-    int minPos;
-    VelocityRegulator velocityRegulator_;
-    PositionRegulator positionRegulator_;
-    int targetSpeed_;
+    ServoDriveControl controlSystem;
     ControlKind controlKind;
     TtlInPin basePin;
-    int spd;
-    int spd_1;
-    int spd_2;
 };
 
 #endif // DRIVES_H_165506122012

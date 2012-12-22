@@ -3,7 +3,7 @@
 bool SoftEncoder::checkTriggerRaised() {
     if (trigger.changed()) {
         trigger.reset();
-        return true;//trigger.high();
+        return trigger.high();
     }
     return false;
 }

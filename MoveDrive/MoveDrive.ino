@@ -4,9 +4,20 @@
 
 DescreteSample descrete;
 
-PwmDriver drive1(22,23,2);
-ServoDrive baseDrive(23,22,2,24,descrete);
+const unsigned drivesCount = 5;
 
+ServoDrive drives[drivesCount] = { 
+  ServoDrive(22,24,2,44,descrete), 
+  ServoDrive(26,28,3,46,descrete),
+  ServoDrive(30,32,4,48,descrete),
+  ServoDrive(34,36,5,50,descrete),
+  ServoDrive(38,40,6,52,descrete) };
+
+ServoDrive & baseDrive(drives[0]);
+ServoDrive & shoulderDrive(drives[1]);
+ServoDrive & elbowDrive(drives[2]);
+ServoDrive & tiltDrive(drives[3]);
+ServoDrive & gripDrive(drives[4]);
 
 // the setup routine runs once when you press reset:
 void setup() {                
@@ -14,20 +25,14 @@ void setup() {
   Serial.flush();
   while( Serial.available() )
     Serial.read();
-    //baseDrive.calibrate();
-//  drive1.out(200);
-//  delay(1000);
-//  drive1.out(-200);
-//  delay(1000);
-//  drive1.out(0);
-//  delay(1000);
-//  baseDrive.reset();
   Serial.write(0x22);
 }
 
 void control() {
   if( descrete.tick() ) {
-    baseDrive.control();
+    for(byte i(0); i!=drivesCount; ++i) {
+      drives[i].control();
+    }
   }
 }
 
@@ -50,65 +55,67 @@ void writeToSerial( const uint8_t * buf, uint8_t size ) {
 
 #define MESSAGE_HANDLERS_END default:;}
 
-#define HANDLE_MESSAGE_BEGIN(Request,Response)\
-  case Request::messageType : {\
-    typedef Response __Resp; \
+#define HANDLER_BEGIN(Message)\
+  case Message::Request::messageType : {\
+    typedef Message::Request Request;\
+    typedef Message::Response Response; \
     if(Serial.available()>=sizeof(Request)) { \
       Request request;\
       readFromSerial((char*)(&request), sizeof(Request));\
       Response response;
          
-#define HANDLE_MESSAGE_END Serial.flush(); writeToSerial((uint8_t*)(&response), sizeof(__Resp));}} break
+#define HANDLER_END Serial.flush(); writeToSerial((uint8_t*)(&response), sizeof(Response));}} break
 
+ServoDrive & getGrive(const DriveRequest & request) {
+  return drives[request.drive-1];
+}
 // the loop routine runs over and over again forever:
 void loop() {
   if (Serial.available()) {  //если есть доступные данные
     MESSAGE_HANDLERS_BEGIN
-      HANDLE_MESSAGE_BEGIN(PwmOut,ArduinoResponse)
+      HANDLER_BEGIN(PwmOut)
         PwmPin pin(request.pin);
         pin.value(request.value);
         response.result = 0;
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(MoveDriveTo,ArduinoResponse)
-        baseDrive.setMaxSpeed(request.speed);
-        baseDrive.targetPosition(request.x);
+      HANDLER_END;
+
+      HANDLER_BEGIN(MoveTo)
+        ServoDrive & drive(getGrive(request));
+        drive.targetPosition(request.x);
         response.result = 0;
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(MoveDriveSpeed,ArduinoResponse)
-        baseDrive.targetSpeed(request.speed);
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(SeekDriveSpeed,ArduinoResponse)
-        baseDrive.seek(request.speed);
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(ResetDrive,ArduinoResponse)
-        baseDrive.reset();
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(GetDrivePosition,DrivePosition)
-        response.pos = baseDrive.position();
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(GetDriveSpeed,DriveSpeed)
-        response.speed = baseDrive.speed();
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(GetDrivePositionError,DrivePositionError)
-        response.error = baseDrive.positionError();
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(ConfigureDrive,ArduinoResponse)
-        baseDrive.reset();
-        baseDrive.velocityRegulator().configure(request.speed.Kp(), request.speed.Kip(), request.speed.Kdp());
-        baseDrive.positionRegulator().configure(request.pos.Kp());
-        baseDrive.deadZone(request.pwm.deadZone);
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(GetDriveState,DriveStateResponse)
-        response.state.pos = baseDrive.position();
-        response.state.error = baseDrive.positionError();
-        response.state.speed = baseDrive.speed();
-        response.state.speedError = baseDrive.speedError();
-        response.state.out = baseDrive.out();
-      HANDLE_MESSAGE_END;
-      HANDLE_MESSAGE_BEGIN(StopDrive,ArduinoResponse)
-        drive1.stop();
-        response.result = 0;
-      HANDLE_MESSAGE_END;
+      HANDLER_END;
+
+      HANDLER_BEGIN(MoveSpeed)
+        ServoDrive & drive(getGrive(request));
+        drive.targetSpeed(request.speed);
+      HANDLER_END;
+
+      HANDLER_BEGIN(SeekDriveSpeed)
+        ServoDrive & drive(getGrive(request));
+        drive.seek(request.speed);
+      HANDLER_END;
+
+      HANDLER_BEGIN(ResetDrive)
+        ServoDrive & drive(getGrive(request));
+        drive.reset();
+      HANDLER_END;
+
+      HANDLER_BEGIN(ConfigureDrive)
+        ServoDrive & drive(getGrive(request));
+        drive.reset();
+        drive.velocityRegulator().configure(request.speed.Kp(), request.speed.Kip(), request.speed.Kdp());
+        drive.positionRegulator().configure(request.pos.Kp());
+        drive.deadZone(request.pwm.deadZone);
+      HANDLER_END;
+
+      HANDLER_BEGIN(GetDriveState)
+        ServoDrive & drive(getGrive(request));
+        response.state.pos = drive.position();
+        response.state.error = drive.positionError();
+        response.state.speed = drive.speed();
+        response.state.speedError = drive.speedError();
+        response.state.out = drive.out();
+      HANDLER_END;
     MESSAGE_HANDLERS_END;
   }
   control();

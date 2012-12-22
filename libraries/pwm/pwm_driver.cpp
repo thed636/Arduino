@@ -1,7 +1,5 @@
 #include <pwm_driver.h>
 
-const int PwmDriver::maxPwmValue = 255;
-
 void PwmDriver::out(int v) {
     const int newValue = constrain(v, minOutValue(), maxOutValue());
     if (newValue != out()) {

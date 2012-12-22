@@ -13,12 +13,11 @@ public:
     }
 
     const int maxOutValue() const {
-        return maxPwmValue - deadZone();
+        return pwm.maxValue - deadZone();
     }
     const int minOutValue() const {
         return -maxOutValue();
     }
-    static const int maxPwmValue;
 
     inline void stop() {
         out(0);
